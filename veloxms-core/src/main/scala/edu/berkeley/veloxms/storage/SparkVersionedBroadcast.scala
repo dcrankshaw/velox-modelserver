@@ -13,7 +13,11 @@ import scala.util.control.NonFatal
  * A versioned broadcast that works via reading & writing to a global filesystem via the spark cluster
  * @tparam T Has ClassTag because sc.objectFile (to load the broadcast) requires a classtag
  */
-class SparkVersionedBroadcast[T: ClassTag](sc: SparkContext, path: String) extends VersionedBroadcast[T] with Logging {
+class SparkVersionedBroadcast[T: ClassTag](
+    sc: SparkContext,
+    path: String)
+  extends VersionedBroadcast[T] with Logging {
+
   private val cachedValues: mutable.Map[Version, T] = mutable.Map()
 
   override def put(value: T, version: Version): Unit = this.synchronized {

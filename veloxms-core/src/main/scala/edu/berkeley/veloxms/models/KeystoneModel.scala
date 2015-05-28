@@ -34,3 +34,4 @@ abstract class KeystoneModel[T : ClassTag] extends Model[T] {
 
   def fit(sc: SparkContext): Transformer[T, FeatureVector]
 }
+

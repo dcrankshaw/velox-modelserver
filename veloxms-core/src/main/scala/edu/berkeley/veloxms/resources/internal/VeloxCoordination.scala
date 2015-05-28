@@ -88,6 +88,13 @@ class LoadNewModelServlet(model: Model[_], timer: Timer, sparkContext: SparkCont
         (userId, userFeatures)
       }).collect().toMap
 
+      val avgUser = sparkContext.textFile(s"$uri/avg_user/*")..map(line => {
+        val userSplits = line.split(", ")
+        val userFeatures: Array[Double] = userSplits.map(_.toDouble)
+        userFeatures
+      }).collect().head
+
+
       if (users.size > 0) {
         val firstUser = users.head
         logInfo(s"Loaded new models for ${users.size} users. " +
@@ -96,6 +103,7 @@ class LoadNewModelServlet(model: Model[_], timer: Timer, sparkContext: SparkCont
 
 
       // TODO: Should make sure it's sufficiently atomic
+      model.averageUser = avgUser
       model.writeUserWeights(users, modelLocation.version)
       model.useVersion(modelLocation.version)
 

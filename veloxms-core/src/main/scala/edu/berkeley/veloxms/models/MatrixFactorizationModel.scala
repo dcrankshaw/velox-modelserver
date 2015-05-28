@@ -6,16 +6,20 @@ import org.apache.spark.rdd._
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.recommendation.{ALS,Rating}
 import edu.berkeley.veloxms.util._
+
 class MatrixFactorizationModel(
     val modelName: String,
     val broadcastProvider: BroadcastProvider,
     val numFeatures: Int,
     val averageUser: WeightVector
-  ) extends Model[Long] {
+  ) extends FeatureModel[Long] {
 
   val defaultItem: FeatureVector = Array.fill[Double](numFeatures)(0.0)
 
   val itemStorage = broadcast[Map[Long, FeatureVector]]("items")
+
+  def initBroadcast(
+
 
   /**
    * User provided implementation for the given model. Will be called

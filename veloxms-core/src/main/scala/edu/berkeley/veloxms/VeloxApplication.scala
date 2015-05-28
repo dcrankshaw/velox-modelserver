@@ -1,7 +1,6 @@
 package edu.berkeley.veloxms
 
 import java.util.concurrent.TimeUnit
-
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.berkeley.veloxms.background.{BatchRetrainManager, OnlineUpdateManager}
 import edu.berkeley.veloxms.models._
@@ -53,7 +52,7 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
       logInfo("Starting spark context")
       val sparkConf = new SparkConf()
           .setMaster(sparkMaster)
-          .setAppName("VeloxOnSpark!")
+          .setAppName("Velox")
           .setJars(SparkContext.jarOfObject(this).toSeq)
 
       val sparkContext = new SparkContext(sparkConf)
@@ -83,7 +82,6 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
         throw new VeloxInitializationException("Configuration error. Aborting Velox", e)
       }
     }
-    // env.jersey().register(new CacheHitResource(models.toMap))
   }
 
   def getPartitionMap(etcdClient: EtcdClient): Seq[String] = {
@@ -104,9 +102,12 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
       sparkDataLocation: String,
       partitionMap: Seq[String],
       env: Environment,
-      hostname: String): Unit = {
+      hostname: String)
+  : Unit = {
+
     val masterPartition = Utils.nonNegativeMod(name.hashCode, partitionMap.size)
     val onlineUpdateManager = new OnlineUpdateManager(model, onlineUpdateDelayInMillis, TimeUnit.MILLISECONDS, env.metrics().timer(s"$name/online_update"))
+    model.setOnlineUpdateManager(onlineUpdateManager)
     val batchRetrainManager = new BatchRetrainManager(
       model,
       partitionMap,
@@ -190,15 +191,16 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
     env.getApplicationContext.addServlet(new ServletHolder(loadObservationsServlet), "/loadobservations/" + name)
   }
 
-  def createModel(name: String,
-                  sparkContext: SparkContext,
-                  etcdClient: EtcdClient,
-                  broadcastProvider: BroadcastProvider,
-                  sparkDataLocation: String,
-                  partitionMap: Seq[String],
-                  env: Environment,
-                  hostname: String
-                  ): Unit = {
+  def createModel(
+    name: String,
+    sparkContext: SparkContext,
+    etcdClient: EtcdClient,
+    broadcastProvider: BroadcastProvider,
+    sparkDataLocation: String,
+    partitionMap: Seq[String],
+    env: Environment,
+    hostname: String
+  ): Unit = {
 
     val key = s"$configEtcdPath/models/$name"
     val json = etcdClient.getValue(key)
@@ -207,6 +209,10 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
     // TODO(crankshaw) cleanup model constructor code after Tomer
     // finishes refactoring model and storage configuration
     val averageUser = Array.fill[Double](modelConfig.dimensions)(1.0)
+    val model = new Model
+
+
+    val model = 
     modelConfig.modelType match {
       case "MatrixFactorizationModel" =>
         val model = new MatrixFactorizationModel(
