@@ -22,7 +22,6 @@ import scala.util.Sorting
  * the user must implement into a single class.
  */
 abstract class Model[T: ClassTag] extends Logging {
-  val clss = classTag[T].runtimeClass.asInstanceOf[Class[T]]
 
   private var version: Version = new Date(0).getTime
   def currentVersion: Version = version
@@ -31,31 +30,66 @@ abstract class Model[T: ClassTag] extends Logging {
     this.version = version
   }
 
-  // Abstract members should be def, not val, as this provides
-  // much more flexibility about how they are implemented
+  private var initialized = false
 
-  def broadcastProvider: BroadcastProvider
+  var modelName: String = ""
 
-  def modelName: String
+  /** The number of features in this model.
+   * Used for pre-allocating arrays/matrices
+   */
+  var numFeatures: Int = 0
+
+  /**
+   * No-op. User can override and implement desired behavior.
+   */
+  def configure(config: Option[JsonNode]): Unit = { }
+
+  /**
+   * Workaround for needing zero argument constructor.
+   * We instantiate concrete models using reflection, and so they need
+   * to have default constructors. But there are still some parameters
+   * needed, they can be provided to the instance using initModel.
+   *
+   * Note that if you override this method, you must include a call
+   * to super.initModel as the first line of the method. This method
+   * can only be called once.
+   *
+   * @param name The human-readable name of the model. Often a short-description of the purpose of the model.
+   * @param broadcastImpl The broadcast method being used
+   * @param features The number of features this model uses
+   * @param config Optional additional, model-specific json configuration parameters. Ignored unless
+   *                 used by a subclass that overrides this method
+   */
+  final def initialize(
+      name: String,
+      impl: BroadCastImpl,
+      features: Int,
+      config: Option[JsonNode]): Unit = this.synchronized {
+
+    require(initialized == false,
+      s"Model ${this.modelName} already initialized. Ignoring duplicate call")
+    initialized = true
+    modelName = name
+    numFeatures = features
+    configure(config)
+    broadcasts.foreach(_.init(impl))
+  }
+
 
   // TODO: Observations should be stored w/ Timestamps, and in a more relational format w/ persistence
   val observations: ConcurrentHashMap[UserID, ConcurrentHashMap[T, Double]] = new ConcurrentHashMap()
   val userWeights: ConcurrentHashMap[(UserID, Version), WeightVector] = new ConcurrentHashMap()
 
-  /** The number of features in this model.
-   * Used for pre-allocating arrays/matrices
-   */
-  def numFeatures: Int
 
-  /** Average user weight vector.
+  /**
+   * Average user weight vector.
    * Used for warmstart for new users
-   * TODO: SHOULD BE RETRAINED WHEN BULK RETRAINING!!!
    **/
-  def averageUser: WeightVector
+  val averageUser = broadcast[WeightVector]("avg_user")
 
   val broadcasts = new ConcurrentLinkedQueue[VersionedBroadcast[_]]()
   protected def broadcast[V: ClassTag](id: String): VersionedBroadcast[V] = {
-    val b = broadcastProvider.get[V](s"$modelName/$id")
+    val b = VersionedBroadcast[V](s"$modelName/$id")
     broadcasts.add(b)
     b
   }

@@ -16,6 +16,7 @@ import org.eclipse.jetty.servlet.ServletHolder
 
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
+import scala.reflect.runtime.{universe => ru}
 
 class VeloxConfiguration extends Configuration {
   val hostname: String = "none"
@@ -57,7 +58,7 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
           .setJars(SparkContext.jarOfObject(this).toSeq)
 
       val sparkContext = new SparkContext(sparkConf)
-      val broadcastProvider = new SparkVersionedBroadcastProvider(sparkContext, sparkDataLocation)
+      val broadcastImpl = new SparkBroadcastImpl(sparkContext, sparkDataLocation)
       val prefix = s"$configEtcdPath/models"
       val modelNames = etcdClient.listDir(prefix).map(_.stripPrefix(s"/$prefix/"))
 
@@ -66,7 +67,7 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
       val models = modelNames.foreach(name => createModel(name,
                                                       sparkContext,
                                                       etcdClient,
-                                                      broadcastProvider,
+                                                      broadcastImpl,
                                                       sparkDataLocation,
                                                       partitionMap,
                                                       env,
@@ -100,7 +101,7 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
       batchRetrainDelayInMillis: Long,
       sparkContext: SparkContext,
       etcdClient: EtcdClient,
-      broadcastProvider: BroadcastProvider,
+      broadcastImpl: BroadcastImpl,
       sparkDataLocation: String,
       partitionMap: Seq[String],
       env: Environment,
@@ -193,7 +194,7 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
   def createModel(name: String,
                   sparkContext: SparkContext,
                   etcdClient: EtcdClient,
-                  broadcastProvider: BroadcastProvider,
+                  broadcastImpl: BroadcastImpl,
                   sparkDataLocation: String,
                   partitionMap: Seq[String],
                   env: Environment,
@@ -207,6 +208,12 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
     // TODO(crankshaw) cleanup model constructor code after Tomer
     // finishes refactoring model and storage configuration
     val averageUser = Array.fill[Double](modelConfig.dimensions)(1.0)
+    val mirror = ru.runtimeMirror(getClass.getClassLoader)
+    val clz = Class.forName(modelConfig.modelType)
+    val modelType = mirror.classSymbol(clz).toType
+    val model = 
+
+
     modelConfig.modelType match {
       case "MatrixFactorizationModel" =>
         val model = new MatrixFactorizationModel(

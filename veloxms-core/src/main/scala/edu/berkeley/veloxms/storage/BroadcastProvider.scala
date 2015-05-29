@@ -13,6 +13,13 @@ trait BroadcastProvider {
   def get[T: ClassTag](id: String): VersionedBroadcast[T]
 }
 
-class SparkVersionedBroadcastProvider(sparkContext: SparkContext, path: String) extends BroadcastProvider {
-  override def get[T: ClassTag](id: String): VersionedBroadcast[T] = new SparkVersionedBroadcast(sparkContext, s"$path/$id")
+class SparkVersionedBroadcastProvider(
+    sparkContext: SparkContext,
+    path: String)
+  extends BroadcastProvider {
+
+  override def get[T: ClassTag](id: String): VersionedBroadcast[T] = {
+    new SparkVersionedBroadcast(sparkContext, s"$path/$id")
+  }
 }
+
