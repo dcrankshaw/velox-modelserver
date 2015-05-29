@@ -44,7 +44,8 @@ class PointPredictionServlet[T : ClassTag](
 
       val correctPartition = Utils.nonNegativeMod(uid.hashCode(), partitionMap.size)
       val output = if (partitionMap(correctPartition) == hostname) {
-        val item: T = fromJson(context)
+        val item: T = fromJson[T](context)
+        println(item.getClass)
         model.predict(uid, item, model.currentVersion)
       } else {
         val h = hosts(correctPartition)

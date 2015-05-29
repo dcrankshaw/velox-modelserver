@@ -16,6 +16,7 @@ import org.eclipse.jetty.servlet.ServletHolder
 
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
+import scala.reflect.runtime.{universe => ru}
 
 class VeloxConfiguration extends Configuration {
   val hostname: String = "none"
@@ -56,7 +57,8 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
           .setAppName("VeloxOnSpark!")
           .setJars(SparkContext.jarOfObject(this).toSeq)
 
-      val sparkContext = new SparkContext(sparkConf)
+      // val sparkContext = new SparkContext(sparkConf)
+      val sparkContext = null
       val broadcastProvider = new SparkVersionedBroadcastProvider(sparkContext, sparkDataLocation)
       val prefix = s"$configEtcdPath/models"
       val modelNames = etcdClient.listDir(prefix).map(_.stripPrefix(s"/$prefix/"))
@@ -92,9 +94,52 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
     jsonMapper.readValue(json, classOf[Seq[String]])
   }
 
+  def createModel(name: String,
+                  sparkContext: SparkContext,
+                  etcdClient: EtcdClient,
+                  broadcastProvider: BroadcastProvider,
+                  sparkDataLocation: String,
+                  partitionMap: Seq[String],
+                  env: Environment,
+                  hostname: String
+                  ): Unit = {
 
-  def registerModelResources[T : ClassTag](
-      model: Model[T],
+    val key = s"$configEtcdPath/models/$name"
+    val json = etcdClient.getValue(key)
+    val modelConfig = jsonMapper.readValue(json, classOf[VeloxModelConfig])
+
+    // TODO(crankshaw) cleanup model constructor code after Tomer
+    // finishes refactoring model and storage configuration
+    val averageUser = Array.fill[Double](modelConfig.dimensions)(1.0)
+    val mirror = ru.runtimeMirror(getClass.getClassLoader)
+    logWarning("Starting reflection")
+    
+    val clz = Class.forName(modelConfig.modelType)
+    val classSymbol = mirror.classSymbol(clz)
+    logWarning(s"Class Symbol: $classSymbol")
+
+    val cm = mirror.reflectClass(classSymbol)
+    val constructor = classSymbol.toType.declaration(ru.nme.CONSTRUCTOR).asMethod
+    val ctorm = cm.reflectConstructor(constructor)
+    logWarning(s"ctorm: $ctorm")
+    val model = ctorm(name, broadcastProvider).asInstanceOf[Model[_]]
+    logWarning(s"model: $model")
+    registerModelResources(
+      model,
+      name,
+      modelConfig.onlineUpdateDelayInMillis,
+      modelConfig.batchRetrainDelayInMillis,
+      sparkContext,
+      etcdClient,
+      broadcastProvider,
+      sparkDataLocation,
+      partitionMap,
+      env,
+      hostname)
+  }
+
+  def registerModelResources(
+      model: Model[_],
       name: String,
       onlineUpdateDelayInMillis: Long,
       batchRetrainDelayInMillis: Long,
@@ -190,62 +235,6 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
     env.getApplicationContext.addServlet(new ServletHolder(loadObservationsServlet), "/loadobservations/" + name)
   }
 
-  def createModel(name: String,
-                  sparkContext: SparkContext,
-                  etcdClient: EtcdClient,
-                  broadcastProvider: BroadcastProvider,
-                  sparkDataLocation: String,
-                  partitionMap: Seq[String],
-                  env: Environment,
-                  hostname: String
-                  ): Unit = {
-
-    val key = s"$configEtcdPath/models/$name"
-    val json = etcdClient.getValue(key)
-    val modelConfig = jsonMapper.readValue(json, classOf[VeloxModelConfig])
-
-    // TODO(crankshaw) cleanup model constructor code after Tomer
-    // finishes refactoring model and storage configuration
-    val averageUser = Array.fill[Double](modelConfig.dimensions)(1.0)
-    modelConfig.modelType match {
-      case "MatrixFactorizationModel" =>
-        val model = new MatrixFactorizationModel(
-          name,
-          broadcastProvider,
-          modelConfig.dimensions,
-          averageUser)
-        registerModelResources(
-          model,
-          name,
-          modelConfig.onlineUpdateDelayInMillis,
-          modelConfig.batchRetrainDelayInMillis,
-          sparkContext,
-          etcdClient,
-          broadcastProvider,
-          sparkDataLocation,
-          partitionMap,
-          env,
-          hostname)
-      case "NewsgroupsModel" =>
-        val model = new NewsgroupsModel(
-          name,
-          broadcastProvider,
-          averageUser,
-          modelConfig.trainPath.get)
-        registerModelResources(
-          model,
-          name,
-          modelConfig.onlineUpdateDelayInMillis,
-          modelConfig.batchRetrainDelayInMillis,
-          sparkContext,
-          etcdClient,
-          broadcastProvider,
-          sparkDataLocation,
-          partitionMap,
-          env,
-          hostname)
-    }
-  }
 }
 
 case class VeloxModelConfig(

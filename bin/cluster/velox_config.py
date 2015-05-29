@@ -4,7 +4,7 @@ matrixfact_config = {
         'onlineUpdateDelayInMillis': 5000,
         'batchRetrainDelayInMillis': 500000,
         'dimensions': 50,
-        'modelType': 'MatrixFactorizationModel',
+        'modelType': 'edu.berkeley.veloxms.models.MatrixFactorizationModel',
         }
 
 newsgroups_config = {
@@ -17,9 +17,9 @@ newsgroups_config = {
 
 config = {
         'sparkMaster': "local[2]",
-        'sparkDataLocation': "/Users/tomerk11/Desktop/velox-data",
+        'sparkDataLocation': "/Users/crankshaw/Desktop/velox-data",
         'models': {
                 'matrixfact': json.dumps(matrixfact_config),
-                'newsgroups': json.dumps(newsgroups_config)
+                # 'newsgroups': json.dumps(newsgroups_config)
                 }
         }
