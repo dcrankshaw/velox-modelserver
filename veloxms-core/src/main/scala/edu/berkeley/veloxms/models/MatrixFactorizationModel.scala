@@ -13,22 +13,16 @@ case class MFConfig(numFeatures: Int)
 
 class MatrixFactorizationModel(
     override val modelName: String,
-    override val broadcastProvider: BroadcastProvider)
- extends Model[Long](modelName, broadcastProvider) {
-    // jsonConfig: JsonNode)
+    override val broadcastProvider: BroadcastProvider,
+    override val jsonConfig: Option[JsonNode])
+ extends Model[Long](modelName, broadcastProvider, jsonConfig) {
 
 
   val itemStorage = broadcast[Map[Long, FeatureVector]]("items")
 
-  // val numFeatures = fromJson[MFConfig](jsonConfig).numFeatures
-  val numFeatures = 50
+  val numFeatures = fromJson[MFConfig](jsonConfig.get).numFeatures
 
   val defaultItem: FeatureVector = Array.fill[Double](numFeatures)(0.0)
-
-  // def jsonToInput(context: JsonNode): Long = {
-  //   val item: Long = fromJson[Long](context)
-  //   item
-  // }
 
 
   /**

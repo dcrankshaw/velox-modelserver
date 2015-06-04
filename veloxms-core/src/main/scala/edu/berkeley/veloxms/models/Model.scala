@@ -18,14 +18,11 @@ import com.fasterxml.jackson.databind.JsonNode
 
 /**
  * Model interface
- * @tparam T The scala type of the item, deserialized from Array[Byte]
- * We defer deserialization to the model interface to encapsulate everything
- * the user must implement into a single class.
  */
 abstract class Model[T: ClassTag](
     val modelName: String,
-    val broadcastProvider: BroadcastProvider)
-    // jsonConfig: JsonNode)
+    val broadcastProvider: BroadcastProvider,
+    val jsonConfig: Option[JsonNode])
   extends Logging {
 
   private var version: Version = new Date(0).getTime
@@ -50,7 +47,7 @@ abstract class Model[T: ClassTag](
   }
 
   def jsonArrayToInput(context: JsonNode): Array[T] = {
-    val items: T = fromJson[Array[T]](context)
+    val items: Array[T] = fromJson[Array[T]](context)
     items
   }
 
@@ -91,7 +88,6 @@ abstract class Model[T: ClassTag](
   }
 
   /**
-   * Velox implemented - fetch from local Tachyon partition
    *
    */
   private def getWeightVector(userId: Long, version: Version) : WeightVector = {

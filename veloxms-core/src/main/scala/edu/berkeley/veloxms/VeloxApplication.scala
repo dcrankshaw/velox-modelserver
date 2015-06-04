@@ -17,6 +17,7 @@ import org.eclipse.jetty.servlet.ServletHolder
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
 import scala.reflect.runtime.{universe => ru}
+import com.fasterxml.jackson.databind.JsonNode
 
 class VeloxConfiguration extends Configuration {
   val hostname: String = "none"
@@ -105,29 +106,30 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
 
     val key = s"$configEtcdPath/models/$name"
     val json = etcdClient.getValue(key)
-    val modelConfig = jsonMapper.readValue(json, classOf[VeloxModelConfig])
-
-    // TODO(crankshaw) cleanup model constructor code after Tomer
-    // finishes refactoring model and storage configuration
-    val averageUser = Array.fill[Double](modelConfig.dimensions)(1.0)
+    val jsonTree = jsonMapper.readTree(json)
+    require(jsonTree.has("modelType"))
+    require(jsonTree.has("onlineUpdateDelayInMillis"))
+    require(jsonTree.has("batchRetrainDelayInMillis"))
+    val modelType = jsonTree.get("modelType").asText
+    val onlineUpdateDelay = jsonTree.get("onlineUpdateDelayInMillis").asLong
+    val batchRetrainDelay = jsonTree.get("batchRetrainDelayInMillis").asLong
+    val modelSpecificConfig: Option[JsonNode] = if (jsonTree.has("config")) {
+      Some(jsonTree.get("config"))
+    } else {
+      None
+    }
     val mirror = ru.runtimeMirror(getClass.getClassLoader)
-    logWarning("Starting reflection")
-    
-    val clz = Class.forName(modelConfig.modelType)
+    val clz = Class.forName(modelType)
     val classSymbol = mirror.classSymbol(clz)
-    logWarning(s"Class Symbol: $classSymbol")
-
     val cm = mirror.reflectClass(classSymbol)
     val constructor = classSymbol.toType.declaration(ru.nme.CONSTRUCTOR).asMethod
     val ctorm = cm.reflectConstructor(constructor)
-    logWarning(s"ctorm: $ctorm")
-    val model = ctorm(name, broadcastProvider).asInstanceOf[Model[_]]
-    logWarning(s"model: $model")
+    val model = ctorm(name, broadcastProvider, modelSpecificConfig).asInstanceOf[Model[_]]
     registerModelResources(
       model,
       name,
-      modelConfig.onlineUpdateDelayInMillis,
-      modelConfig.batchRetrainDelayInMillis,
+      onlineUpdateDelay,
+      batchRetrainDelay,
       sparkContext,
       etcdClient,
       broadcastProvider,
@@ -183,7 +185,6 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
       onlineUpdateManager,
       env.metrics().timer(name + "/disableonlineupdates/"))
     val observeServlet = new AddObservationServlet(
-      model,
       onlineUpdateManager,
       env.metrics().timer(name + "/observe/"),
       name,
@@ -236,15 +237,4 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
   }
 
 }
-
-case class VeloxModelConfig(
-  dimensions: Int,
-  modelType: String,
-  trainPath: Option[String],
-  onlineUpdateDelayInMillis: Long,
-  batchRetrainDelayInMillis: Long
-)
-
-
-
 
