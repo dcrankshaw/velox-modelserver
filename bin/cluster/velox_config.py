@@ -2,7 +2,7 @@ import json
 
 matrixfact_config = {
         'onlineUpdateDelayInMillis': 5000,
-        'batchRetrainDelayInMillis': 500000,
+        'batchRetrainDelayInMillis': 50000000,
         'config': {
                 'numFeatures': 50
                 },

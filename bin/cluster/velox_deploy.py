@@ -54,7 +54,7 @@ VELOX_SERVER_JAR = "veloxms-core/target/veloxms-core-0.0.1-SNAPSHOT.jar"
 VELOX_SERVER_CLASS = "edu.berkeley.veloxms.VeloxEntry"
 VELOX_GARBAGE_COLLECTOR = "UseConcMarkSweepGC"
 VELOX_HVM_AMI = 'ami-10119778'
-VELOX_HEAP_SIZE_GB = 2
+VELOX_HEAP_SIZE_GB = 8
 
 ETCD_PORT = 4001
 ETCD_BASE_PATH = "/v2/keys/cluster_config"
@@ -462,7 +462,7 @@ def start_velox(start_local="n"):
     upload_config_to_etcd()
     if start_local.lower() == "y":
         velox_root_dir = os.path.abspath("../..")
-        server_cmd = ("java -XX:+{gc} -Xms{hs}g -Xmx{hs}g "
+        server_cmd = ("java -XX:+{gc} -Xms{hs}g -Xmx{hs}g -XX:MaxPermSize=512M "
                       "-Ddw.hostname=127.0.0.1 -cp {vr}/{jar} {cls} server & sleep 5; exit 0"
                       ).format(gc=VELOX_GARBAGE_COLLECTOR,
                                hs=VELOX_HEAP_SIZE_GB,
