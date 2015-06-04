@@ -13,6 +13,7 @@ import org.apache.spark.rdd.RDD
 import scala.collection.JavaConversions._
 import scala.reflect._
 import scala.util.Sorting
+import com.fasterxml.jackson.databind.JsonNode
 
 
 /**
@@ -43,6 +44,16 @@ abstract class Model[T: ClassTag](
    */
   def numFeatures: Int
 
+  def jsonToInput(context: JsonNode): T = {
+    val item: T = fromJson[T](context)
+    item
+  }
+
+  def jsonArrayToInput(context: JsonNode): Array[T] = {
+    val items: T = fromJson[Array[T]](context)
+    items
+  }
+
 
   val broadcasts = new ConcurrentLinkedQueue[VersionedBroadcast[_]]()
   protected def broadcast[V: ClassTag](id: String): VersionedBroadcast[V] = {
@@ -56,7 +67,6 @@ abstract class Model[T: ClassTag](
    * TODO: SHOULD BE RETRAINED WHEN BULK RETRAINING!!!
    **/
   val averageUser = broadcast[WeightVector]("avg_user")
-  val defaultAverage = Array.fill[Double](numFeatures)(1.0)
 
   /**
    * User provided implementation for the given model. Will be called
@@ -85,6 +95,7 @@ abstract class Model[T: ClassTag](
    *
    */
   private def getWeightVector(userId: Long, version: Version) : WeightVector = {
+    val defaultAverage = Array.fill[Double](numFeatures)(1.0)
     val result: Option[Array[Double]] = Option(userWeights.get((userId, version)))
     result match {
       case Some(u) => u

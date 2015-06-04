@@ -57,8 +57,7 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
           .setAppName("VeloxOnSpark!")
           .setJars(SparkContext.jarOfObject(this).toSeq)
 
-      // val sparkContext = new SparkContext(sparkConf)
-      val sparkContext = null
+      val sparkContext = new SparkContext(sparkConf)
       val broadcastProvider = new SparkVersionedBroadcastProvider(sparkContext, sparkDataLocation)
       val prefix = s"$configEtcdPath/models"
       val modelNames = etcdClient.listDir(prefix).map(_.stripPrefix(s"/$prefix/"))
@@ -184,6 +183,7 @@ class VeloxApplication extends Application[VeloxConfiguration] with Logging {
       onlineUpdateManager,
       env.metrics().timer(name + "/disableonlineupdates/"))
     val observeServlet = new AddObservationServlet(
+      model,
       onlineUpdateManager,
       env.metrics().timer(name + "/observe/"),
       name,

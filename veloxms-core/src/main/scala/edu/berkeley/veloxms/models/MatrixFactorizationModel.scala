@@ -6,27 +6,36 @@ import org.apache.spark.rdd._
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.recommendation.{ALS,Rating}
 import edu.berkeley.veloxms.util._
+import com.fasterxml.jackson.databind.JsonNode
 
 case class MFConfig(numFeatures: Int)
+
 
 class MatrixFactorizationModel(
     override val modelName: String,
     override val broadcastProvider: BroadcastProvider)
- extends Model[Int](modelName, broadcastProvider) {
+ extends Model[Long](modelName, broadcastProvider) {
     // jsonConfig: JsonNode)
 
-  val defaultItem: FeatureVector = Array.fill[Double](numFeatures)(0.0)
 
-  val itemStorage = broadcast[Map[Int, FeatureVector]]("items")
+  val itemStorage = broadcast[Map[Long, FeatureVector]]("items")
 
   // val numFeatures = fromJson[MFConfig](jsonConfig).numFeatures
   val numFeatures = 50
+
+  val defaultItem: FeatureVector = Array.fill[Double](numFeatures)(0.0)
+
+  // def jsonToInput(context: JsonNode): Long = {
+  //   val item: Long = fromJson[Long](context)
+  //   item
+  // }
+
 
   /**
    * User provided implementation for the given model. Will be called
    * by Velox on feature cache miss.
    */
-  def computeFeatures(data: Int, version: Version): FeatureVector = {
+  def computeFeatures(data: Long, version: Version): FeatureVector = {
     itemStorage.get(version).flatMap(_.get(data)) match {
       case Some(features) => features
       case None => {
@@ -44,14 +53,14 @@ class MatrixFactorizationModel(
    * @return
    */
   override def retrainFeatureModelsInSpark(
-      observations: RDD[(UserID, Int, Double)],
-      nextVersion: Version): RDD[(Int, FeatureVector)] = {
+      observations: RDD[(UserID, Long, Double)],
+      nextVersion: Version): RDD[(Long, FeatureVector)] = {
     val trainingData = observations.map(y => Rating(y._1.toInt, y._2.toInt, y._3))
     val iterations = 5
     val lambda = 1
     val model = ALS.train(trainingData, numFeatures, iterations, lambda)
 
-    itemStorage.put(model.productFeatures.map(x => (x._1, x._2)).collect().toMap, nextVersion)
-    model.productFeatures.map(x => (x._1, x._2))
+    itemStorage.put(model.productFeatures.map(x => (x._1.toLong, x._2)).collect().toMap, nextVersion)
+    model.productFeatures.map(x => (x._1.toLong, x._2))
   }
 }

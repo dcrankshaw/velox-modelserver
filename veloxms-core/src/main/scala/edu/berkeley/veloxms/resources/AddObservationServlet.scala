@@ -14,7 +14,8 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect._
 
-class AddObservationServlet[T : ClassTag](
+class AddObservationServlet[T](
+    model: Model[T],
     onlineUpdateManager: OnlineUpdateManager[T],
     timer: Timer,
     modelName: String,
@@ -39,7 +40,7 @@ class AddObservationServlet[T : ClassTag](
 
       val correctPartition = Utils.nonNegativeMod(uid.hashCode(), partitionMap.size)
       val output = if (partitionMap(correctPartition) == hostname) {
-        val item: T = fromJson(context)
+        val item: T = model.jsonToInput(context)
         onlineUpdateManager.addObservation(uid, item, score)
         "Successfully added observation"
       } else {
