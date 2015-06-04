@@ -6,7 +6,7 @@ matrixfact_config = {
         'config': {
                 'numFeatures': 50
                 },
-        'modelType': 'edu.berkeley.veloxms.models.MatrixFactorizationModel',
+        'modelType': 'edu.berkeley.veloxms.examples.MatrixFactorizationModel',
         }
 
 newsgroups_config = {
@@ -15,7 +15,7 @@ newsgroups_config = {
         'config': {
                 'dataPath': 's3n://20newsgroups/',
                 },
-        'modelType': 'edu.berkeley.veloxms.models.NewsgroupsModel',
+        'modelType': 'edu.berkeley.veloxms.examples.NewsgroupsModel',
         }
 
 config = {

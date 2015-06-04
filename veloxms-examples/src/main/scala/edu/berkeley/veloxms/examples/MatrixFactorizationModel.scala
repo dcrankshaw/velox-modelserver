@@ -1,6 +1,7 @@
-package edu.berkeley.veloxms.models
+package edu.berkeley.veloxms.examples
 
 import edu.berkeley.veloxms._
+import edu.berkeley.veloxms.models.Model
 import edu.berkeley.veloxms.storage.BroadcastProvider
 import org.apache.spark.rdd._
 import org.apache.spark.SparkContext

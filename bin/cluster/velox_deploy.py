@@ -20,6 +20,7 @@
 #
 
 
+
 from fabric.api import *
 from fabric.colors import green as _green, yellow as _yellow
 from fabric.contrib.console import confirm
@@ -50,7 +51,7 @@ env.key_filename = os.getenv('VELOX_CLUSTER_KEY')
 
 ### VELOX SETTINGS ###
 # HEAP_SIZE_GB = 45
-VELOX_SERVER_JAR = "veloxms-core/target/veloxms-core-0.0.1-SNAPSHOT.jar"
+VELOX_SERVER_JAR = "veloxms-examples/target/veloxms-examples-0.0.1-SNAPSHOT.jar"
 VELOX_SERVER_CLASS = "edu.berkeley.veloxms.VeloxEntry"
 VELOX_GARBAGE_COLLECTOR = "UseConcMarkSweepGC"
 VELOX_HVM_AMI = 'ami-10119778'

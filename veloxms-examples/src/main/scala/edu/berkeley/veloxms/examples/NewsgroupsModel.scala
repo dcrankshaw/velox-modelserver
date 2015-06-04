@@ -1,8 +1,9 @@
-package edu.berkeley.veloxms.models
+package edu.berkeley.veloxms.examples
 
 import breeze.linalg.{Vector, normalize}
 import breeze.numerics.exp
 import edu.berkeley.veloxms._
+import edu.berkeley.veloxms.models._
 import edu.berkeley.veloxms.storage.BroadcastProvider
 import loaders.{LabeledData, NewsgroupsDataLoader}
 import nodes.learning.NaiveBayesEstimator
@@ -44,3 +45,5 @@ class NewsgroupsModel(
     predictor.thenFunction(_.toArray)
   }
 }
+
+
